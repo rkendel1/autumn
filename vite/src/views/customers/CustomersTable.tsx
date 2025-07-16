@@ -27,7 +27,6 @@ import React from "react";
 import { AdminHover } from "@/components/general/AdminHover";
 import CopyButton from "@/components/general/CopyButton";
 import { CustomerRowToolbar } from "./components/CustomerRowToolbar";
-import { useNavigate } from "react-router";
 
 const CustomerWithProductsSchema = CustomerSchema.extend({
   customer_products: z.array(
@@ -42,7 +41,6 @@ export const CustomersTable = ({
   customers: CustomerWithProducts[];
 }) => {
   const env = useEnv();
-  const navigate = useNavigate();
   const { versionCounts } = useCustomersContext();
 
   // console.log("customers", customers);
@@ -173,38 +171,63 @@ export const CustomersTable = ({
 
       {customers.map((customer, index) => (
         <React.Fragment key={index}>
-          <Row
-            className="grid-cols-17 gap-2 items-center text-sm cursor-pointer hover:bg-primary/5 text-t2 whitespace-nowrap"
-            onClick={() => {
-              navigateTo(`/customers/${customer.id || customer.internal_id}`, navigate, env);
-            }}
-          >
-            <Item className="col-span-3">{customer.name}</Item>
-            <Item className="col-span-3 font-mono -translate-x-1">
-              <CopyButton
-                text={customer.id || ""}
-                className="bg-transparent text-t3 border-none px-1 shadow-none max-w-full"
-              >
-                <span className="truncate">{customer.id}</span>
-              </CopyButton>
-            </Item>
-            <Item className="col-span-3">{customer.email}</Item>
-            <Item className="col-span-5">
-              {getCusProductsInfo(customer)}
-            </Item>
-            <Item className="col-span-2 text-t3 text-xs">
-              {formatUnixToDateTime(customer.created_at).date}
-              <span className="text-t3">
-                {" "}
-                {formatUnixToDateTime(customer.created_at).time}{" "}
-              </span>
-            </Item>
-            <Item className="col-span-1 items-center justify-end">
+          <div className="grid grid-cols-17 gap-2 items-center px-10 w-full text-sm h-8 cursor-default hover:bg-primary/5 text-t2 whitespace-nowrap">
+            <Link
+              to={getRedirectUrl(
+                `/customers/${customer.id || customer.internal_id}`,
+                env,
+              )}
+              className="col-span-16 grid grid-cols-16 gap-2 items-center"
+            >
+              <CustomTableCell colSpan={3}>{customer.name}</CustomTableCell>
+              <CustomTableCell className="font-mono -translate-x-1" colSpan={3}>
+                <CopyButton
+                  text={customer.id || ""}
+                  className="bg-transparent text-t3 border-none px-1 shadow-none max-w-full"
+                >
+                  <span className="truncate">{customer.id}</span>
+                </CopyButton>
+              </CustomTableCell>
+              <CustomTableCell colSpan={3}>{customer.email}</CustomTableCell>
+              <CustomTableCell colSpan={5}>
+                {getCusProductsInfo(customer)}
+              </CustomTableCell>
+              <CustomTableCell colSpan={2} className="text-t3 text-xs">
+                {formatUnixToDateTime(customer.created_at).date}
+                <span className="text-t3">
+                  {" "}
+                  {formatUnixToDateTime(customer.created_at).time}{" "}
+                </span>
+              </CustomTableCell>
+            </Link>
+            <div className="col-span-1 flex items-center justify-end">
               <CustomerRowToolbar customer={customer} />
-            </Item>
-          </Row>
+            </div>
+          </div>
         </React.Fragment>
       ))}
     </>
+  );
+};
+
+export const CustomTableCell = ({
+  children,
+  className,
+  colSpan,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  colSpan?: number;
+}) => {
+  return (
+    <div
+      className={cn(
+        colSpan ? `col-span-${colSpan}` : "col-span-3",
+        "overflow-hidden text-ellipsis pr-1",
+        className,
+      )}
+    >
+      {children}
+    </div>
   );
 };
