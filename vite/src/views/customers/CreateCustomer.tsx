@@ -33,6 +33,13 @@ function CreateCustomer() {
   const handleCreate = async () => {
     setIsLoading(true);
 
+    // Validate email doesn't contain whitespace
+    if (fields.email && /\s/.test(fields.email)) {
+      toast.error("Email cannot contain whitespace");
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const { data } = await CusService.createCustomer(axiosInstance, {
         ...fields,
