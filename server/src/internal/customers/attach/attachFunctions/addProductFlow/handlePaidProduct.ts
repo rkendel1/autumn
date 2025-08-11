@@ -22,6 +22,7 @@ import {
   AttachConfig,
   AttachScenario,
   BillingInterval,
+  CusProductStatus,
   ErrCode,
   intervalsDifferent,
   SuccessCode,
@@ -158,6 +159,7 @@ export const handlePaidProduct = async ({
         ? mergeSubs[0].current_period_end * 1000
         : undefined;
 
+  console.log("CONFIG", config);
   for (const product of products) {
     batchInsert.push(
       createFullCusProduct({
@@ -168,6 +170,7 @@ export const handlePaidProduct = async ({
         carryExistingUsages: config.carryUsage,
         scenario: AttachScenario.New,
         logger,
+        status: config.isPending ? CusProductStatus.Pending : undefined,
       })
     );
   }

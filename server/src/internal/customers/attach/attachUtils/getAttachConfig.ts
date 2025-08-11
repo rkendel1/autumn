@@ -48,50 +48,6 @@ export const intervalsAreSame = ({
     curIntervals.size === newIntervals.size &&
     [...curIntervals].every((interval) => newIntervals.has(interval))
   );
-
-  for (const price of curPrices) {
-    let hasSimilarInterval = newProduct.prices.some((p) => {
-      return intervalsSame({
-        intervalA: price.config,
-        intervalB: p.config,
-      });
-    });
-
-    if (!hasSimilarInterval) {
-      return false;
-    }
-  }
-
-  for (const price of newProduct.prices) {
-    let hasSimilarInterval = curPrices.some((p) => {
-      return intervalsSame({
-        intervalA: price.config,
-        intervalB: p.config,
-      });
-    });
-
-    if (!hasSimilarInterval) {
-      return false;
-    }
-  }
-
-  return true;
-  // let curIntervals = new Set(
-  //   curPrices.map((p) => ({
-  //     interval: p.config.interval,
-  //     intervalCount: p.config.interval_count,
-  //   }))
-  // );
-  // let newIntervals = new Set(
-  //   newProduct.prices.map((p) => ({
-  //     interval: p.config.interval,
-  //     intervalCount: p.config.interval_count,
-  //   }))
-  // );
-  // return (
-  //   curIntervals.size === newIntervals.size &&
-  //   [...curIntervals].every((interval) => newIntervals.has(interval))
-  // );
 };
 
 export const getAttachConfig = async ({
@@ -155,6 +111,12 @@ export const getAttachConfig = async ({
     proration,
     disableTrial,
     invoiceOnly: flags.invoiceOnly,
+
+    isPending:
+      attachParams.invoiceOnly && !attachBody.enable_product_immediately
+        ? true
+        : false,
+
     disableMerge,
     sameIntervals,
     carryTrial,
@@ -169,6 +131,7 @@ export const getDefaultAttachConfig = () => {
     carryUsage: false,
     onlyCheckout: false,
     proration: ProrationBehavior.None,
+    isPending: false,
     disableTrial: false,
     invoiceOnly: false,
     disableMerge: false,

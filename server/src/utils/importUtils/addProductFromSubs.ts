@@ -109,9 +109,7 @@ export const addProductFromSubs = async ({
     subscriptionIds: stripeSubs.map((s) => s.id),
     anchorToUnix: anchorToUnix || stripeSubs[0].current_period_end * 1000,
 
-    subscriptionStatus: stripeToAutumnSubStatus(
-      stripeSubs[0].status
-    ) as CusProductStatus,
+    status: stripeToAutumnSubStatus(stripeSubs[0].status) as CusProductStatus,
 
     canceledAt: stripeSubs[0].canceled_at
       ? stripeSubs[0].canceled_at * 1000

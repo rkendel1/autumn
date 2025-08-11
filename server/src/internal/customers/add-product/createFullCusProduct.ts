@@ -68,7 +68,7 @@ export const initCusProduct = ({
   optionsList,
   freeTrial,
   trialEndsAt,
-  subscriptionStatus,
+  status,
   canceledAt,
   createdAt,
   collectionMethod,
@@ -89,7 +89,7 @@ export const initCusProduct = ({
   optionsList: FeatureOptions[];
   freeTrial: FreeTrial | null;
   trialEndsAt?: number | null;
-  subscriptionStatus?: CusProductStatus;
+  status?: CusProductStatus;
   canceledAt?: number | null;
   createdAt?: number | null;
   collectionMethod?: CollectionMethod;
@@ -115,8 +115,8 @@ export const initCusProduct = ({
     product_id: product.id,
     created_at: createdAt || Date.now(),
 
-    status: subscriptionStatus
-      ? subscriptionStatus
+    status: status
+      ? status
       : isFuture
         ? CusProductStatus.Scheduled
         : CusProductStatus.Active,
@@ -266,17 +266,15 @@ export const createFullCusProduct = async ({
   db,
   attachParams,
   startsAt,
-  // subscriptionId,
   nextResetAt,
   disableFreeTrial = false,
   lastInvoiceId = null,
   trialEndsAt,
-  subscriptionStatus,
+  status,
   canceledAt = null,
   createdAt = null,
   subscriptionIds = [],
   subscriptionScheduleIds = [],
-  // keepResetIntervals = false,
   anchorToUnix,
   carryExistingUsages = false,
   carryOverTrial = false,
@@ -294,7 +292,7 @@ export const createFullCusProduct = async ({
   disableFreeTrial?: boolean;
   lastInvoiceId?: string | null;
   trialEndsAt?: number;
-  subscriptionStatus?: CusProductStatus;
+  status?: CusProductStatus;
   canceledAt?: number | null;
   createdAt?: number | null;
   subscriptionIds?: string[];
@@ -436,7 +434,7 @@ export const createFullCusProduct = async ({
     optionsList,
     freeTrial: disableFreeTrial ? null : freeTrial,
     trialEndsAt,
-    subscriptionStatus,
+    status,
     canceledAt,
     createdAt,
     collectionMethod: attachParams.invoiceOnly

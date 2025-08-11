@@ -40,7 +40,7 @@ export const initCusEntEntities = ({
   resetBalance?: number | null;
 }) => {
   let newEntities: Record<string, EntityBalance> | null = notNullish(
-    entitlement.entity_feature_id,
+    entitlement.entity_feature_id
   )
     ? {}
     : null;
