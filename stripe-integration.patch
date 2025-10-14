@@ -1,0 +1,278 @@
+diff --git a/prisma/schema.prisma b/prisma/schema.prisma
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/prisma/schema.prisma
+@@
++generator client {
++  provider = "prisma-client-js"
++}
++
++datasource db {
++  provider = "sqlite"
++  url      = env("DATABASE_URL")
++}
++
++model User {
++  id               String   @id @default(cuid())
++  username         String
++  productUrl       String?
++  stripeUserId     String?
++  accessToken      String?
++  refreshToken     String?
++  createdAt        DateTime @default(now())
++}
++
++model Product {
++  id          String   @id @default(cuid())
++  userId      String
++  name        String
++  description String?
++  createdAt   DateTime @default(now())
++  user        User     @relation(fields: [userId], references: [id])
++}
+diff --git a/lib/prisma.ts b/lib/prisma.ts
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/lib/prisma.ts
+@@
++import { PrismaClient } from '@prisma/client';
++export const prisma = new PrismaClient();
+diff --git a/lib/stripe.ts b/lib/stripe.ts
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/lib/stripe.ts
+@@
++import Stripe from 'stripe';
++export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
++  apiVersion: "2025-02-11",
++});
+diff --git a/app/api/user/route.ts b/app/api/user/route.ts
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/app/api/user/route.ts
+@@
++import { prisma } from "@/lib/prisma";
++export async function POST(req: Request) {
++  const { username, productUrl } = await req.json();
++  const user = await prisma.user.create({
++     { username, productUrl },
++  });
++  // Set cookie to persist session
++  return new Response(JSON.stringify(user), {
++    status: 200,
++    headers: {
++      "Set-Cookie": `user_session=${user.username}; Path=/; HttpOnly`,
++    },
++  });
++}
+diff --git a/app/api/stripe/connect/route.ts b/app/api/stripe/connect/route.ts
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/app/api/stripe/connect/route.ts
+@@
++export async function GET() {
++  const url = `https://connect.stripe.com/oauth/authorize?response_type=code&client_id=${process.env.NEXT_PUBLIC_STRIPE_CLIENT_ID}&scope=read_write&redirect_uri=${process.env.NEXT_PUBLIC_BASE_URL}/api/stripe/callback`;
++  return Response.redirect(url);
++}
+diff --git a/app/api/stripe/callback/route.ts b/app/api/stripe/callback/route.ts
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/app/api/stripe/callback/route.ts
+@@
++import { prisma } from "@/lib/prisma";
++export async function GET(req: Request) {
++  const { searchParams } = new URL(req.url);
++  const code = searchParams.get("code");
++  // Get username from cookie (assume simplistic session for demo)
++  const username = req.headers.get("cookie")
++    ?.split(";")
++    .find(x => x.trim().startsWith("user_session="))
++    ?.split("=")[1];
++  if (!code || !username) return new Response("Invalid", { status: 400 });
++
++  const res = await fetch("https://connect.stripe.com/oauth/token", {
++    method: "POST",
++    headers: { "Content-Type": "application/x-www-form-urlencoded" },
++    body: new URLSearchParams({
++      grant_type: "authorization_code",
++      client_id: process.env.NEXT_PUBLIC_STRIPE_CLIENT_ID!,
++      client_secret: process.env.STRIPE_SECRET_KEY!,
++      code: code!,
++    }),
++  });
++  const data = await res.json();
++  if (!data.stripe_user_id) return new Response("OAuth error", { status: 400 });
++  await prisma.user.update({
++    where: { username },
++     {
++      accessToken: data.access_token,
++      refreshToken: data.refresh_token,
++      stripeUserId: data.stripe_user_id,
++    },
++  });
++  return Response.redirect("/dashboard");
++}
+diff --git a/app/api/stripe/create-product/route.ts b/app/api/stripe/create-product/route.ts
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/app/api/stripe/create-product/route.ts
+@@
++import { prisma } from "@/lib/prisma";
++import Stripe from "stripe";
++export async function POST(req: Request) {
++  const { name, description, username } = await req.json();
++  const user = await prisma.user.findUnique({
++    where: { username }
++  });
++  if (!user?.stripeUserId) {
++    return new Response(JSON.stringify({ error: "No Stripe account" }), { status: 400 });
++  }
++  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2025-02-11" });
++  const product = await stripe.products.create(
++    { name, description },
++    { stripeAccount: user.stripeUserId }
++  );
++  await prisma.product.create({
++     { name, description, userId: user.id },
++  });
++  return new Response(JSON.stringify(product));
++}
+diff --git a/app/dashboard/page.tsx b/app/dashboard/page.tsx
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/app/dashboard/page.tsx
+@@
++"use client";
++import { useState } from "react";
++
++export default function Dashboard() {
++  const [name, setName] = useState("");
++  const [desc, setDesc] = useState("");
++  const [msg, setMsg] = useState("");
++
++  async function handleCreate() {
++    const res = await fetch("/api/stripe/create-product", {
++      method: "POST",
++      body: JSON.stringify({ name, description: desc, username: document.cookie.replace(/(?:(?:^|.*;\s*)user_session\s*\=\s*([^;]*).*$)|^.*$/, "$1") }),
++      headers: { "Content-Type": "application/json" },
++    });
++    const data = await res.json();
++    setMsg(data.name ? `Created product ${data.name}` : data.error);
++  }
++
++  return (
++    <div className="p-8">
++      <h1 className="text-2xl font-semibold mb-4">Dashboard</h1>
++      <div className="space-y-4">
++        <input
++          placeholder="Product Name"
++          value={name}
++          onChange={e => setName(e.target.value)}
++          className="border p-2 rounded w-full"
++        />
++        <input
++          placeholder="Description"
++          value={desc}
++          onChange={e => setDesc(e.target.value)}
++          className="border p-2 rounded w-full"
++        />
++        <button onClick={handleCreate} className="bg-blue-500 text-white px-4 py-2 rounded">
++          Create Product
++        </button>
++        <p>{msg}</p>
++      </div>
++    </div>
++  );
++}
+diff --git a/app/page.tsx b/app/page.tsx
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/app/page.tsx
+@@
++"use client";
++import { useState } from "react";
++export default function Home() {
++  const [username, setUsername] = useState("");
++  const [url, setUrl] = useState("");
++  const [msg, setMsg] = useState("");
++
++  async function handleSignup() {
++    const res = await fetch("/api/user", {
++      method: "POST",
++      body: JSON.stringify({ username, productUrl: url }),
++      headers: { "Content-Type": "application/json" },
++    });
++    if (res.ok) {
++      window.location.href = "/api/stripe/connect";
++    } else {
++      setMsg("Signup failed");
++    }
++  }
++
++  return (
++    <main className="flex min-h-screen flex-col items-center justify-center p-24">
++      <div className="rounded-lg border p-12 shadow-md flex flex-col gap-4 min-w-[350px]">
++        <h1 className="text-3xl font-bold mb-4">Get Started</h1>
++        <input
++          placeholder="Choose a username"
++          className="p-2 border rounded"
++          value={username}
++          onChange={e => setUsername(e.target.value)}
++        />
++        <input
++          placeholder="Your product URL"
++          className="p-2 border rounded"
++          value={url}
++          onChange={e => setUrl(e.target.value)}
++        />
++        <button className="bg-blue-600 text-white px-4 py-2 rounded" onClick={handleSignup}>
++          Continue & Connect Stripe
++        </button>
++        <p>{msg}</p>
++      </div>
++    </main>
++  );
++}
+diff --git a/middleware.ts b/middleware.ts
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/middleware.ts
+@@
++import { NextRequest, NextResponse } from 'next/server';
++
++export function middleware(request: NextRequest) {
++  // Basic session via "user_session" cookie
++  const session = request.cookies.get('user_session');
++  if (
++    request.nextUrl.pathname.startsWith('/api/stripe/callback') ||
++    request.nextUrl.pathname.startsWith('/api/stripe/connect') ||
++    request.nextUrl.pathname.startsWith('/api/user') ||
++    request.nextUrl.pathname === '/'
++  ) {
++    return NextResponse.next();
++  }
++  if (!session) {
++    return NextResponse.redirect(new URL('/', request.url));
++  }
++  return NextResponse.next();
++}
+diff --git a/.env.local b/.env.local
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/.env.local
+@@
++STRIPE_SECRET_KEY=sk_test_xxx
++NEXT_PUBLIC_STRIPE_CLIENT_ID=ca_xxx
++NEXT_PUBLIC_BASE_URL=http://localhost:3000
++DATABASE_URL="file:./dev.db"
